@@ -168,7 +168,26 @@ public class MainForm {
 
                         if (editedTarget != null) {
                             // به‌روزرسانی مقادیر سطر جدول با مقادیر جدید
-                            updateTargetRow(row, editedTarget);
+                            jtblTargets.setValueAt(editedTarget.getId(), row, 0);
+
+                            // نمایش مسیر جدید به صورت لیست نقاط در ستون دوم
+                            StringBuilder routeBuilder = new StringBuilder();
+                            for (ir.hakim.classes.Point p : editedTarget.getPath()) {
+                                routeBuilder.append("(")
+                                        .append(p.getLatitude())
+                                        .append(", ")
+                                        .append(p.getLongitude())
+                                        .append(")\n");
+                            }
+                            jtblTargets.setValueAt(routeBuilder.toString().trim(), row, 1); // ستون Route
+
+                            jtblTargets.setValueAt(editedTarget.getSpeed(), row, 2);
+
+                            StringBuilder sensorNamesText = new StringBuilder();
+                            for (String s : editedTarget.getRelatedSensors()) {
+                                sensorNamesText.append(s).append("\n");
+                            }
+                            jtblTargets.setValueAt(sensorNamesText.toString().trim(), row, 3);
                         }
 
                     } else if (col == colsCount - 1) { // delete target
@@ -180,13 +199,10 @@ public class MainForm {
                             // delete from db
                             HashMap<String, Object> filters = new HashMap<>();
                             filters.put("uid", target.getUid());
-                            DBHelper.deleteDoc(Constants.TARGETS_COLLECTION_NAME, filters);
+                            DBHelper.deleteDoc("targets", filters);
 
                             // delete from view
                             targetsTableModel.removeRow(row);
-                            
-                            // update UI
-                            setTargetsTableUI();
                         }
                     }
                 }
@@ -352,48 +368,7 @@ public class MainForm {
         });
     }
     
-    private void updateTargetRow(int row, Target editedTarget) {
-        try {
-            // به‌روزرسانی مقادیر سطر جدول با مقادیر جدید
-            jtblTargets.setValueAt(editedTarget.getId(), row, 0);
 
-            // نمایش مسیر جدید به صورت لیست نقاط در ستون دوم
-            StringBuilder routeBuilder = new StringBuilder();
-            List<Point> path = (List<Point>) editedTarget.getPath();
-            if (path != null) {
-                for (Point p : path) {
-                    if (p != null) {
-                        routeBuilder.append("(")
-                                .append(p.getLatitude())
-                                .append(", ")
-                                .append(p.getLongitude())
-                                .append(")\n");
-                    }
-                }
-            }
-            jtblTargets.setValueAt(routeBuilder.toString().trim(), row, 1); // ستون Route
-
-            jtblTargets.setValueAt(editedTarget.getSpeed(), row, 2);
-
-            StringBuilder sensorNamesText = new StringBuilder();
-            List<String> relatedSensors = editedTarget.getRelatedSensors();
-            if (relatedSensors != null) {
-                for (String s : relatedSensors) {
-                    sensorNamesText.append(s).append("\n");
-                }
-            }
-            jtblTargets.setValueAt(sensorNamesText.toString().trim(), row, 3);
-            
-            // Update the target ID in the table model
-            if (targetsTableModel.getId(row) == null) {
-                targetsTableModel.addId(editedTarget.getUid());
-            }
-            
-        } catch (Exception ex) {
-            txtLogs.insert(String.format("Error updating target row: %s%n", ex.getMessage()), 0);
-            ex.printStackTrace();
-        }
-    }
 
     public static void main(String[] args, Target originalTarget) {
         SwingUtilities.invokeLater(() -> {
@@ -698,77 +673,67 @@ public class MainForm {
         }
     }
 
-    private Target getTarget(int row) {
-        try {
-            Target target = new Target();
+private Target getTarget(int row) {
+    Target target = new Target();
 
-            // ID
-            Object idObj = jtblTargets.getValueAt(row, 0);
-            if (idObj != null) {
-                target.setId(Integer.parseInt(idObj.toString().trim()));
-            }
+    // ID
+    Object idObj = jtblTargets.getValueAt(row, 0);
+    if (idObj != null) {
+        target.setId(Integer.parseInt(idObj.toString().trim()));
+    }
 
-            // مسیر (Route)
-            Object routeObj = jtblTargets.getValueAt(row, 1);
-            if (routeObj != null) {
-                String routeStr = routeObj.toString().trim();
-                List<Point> path = new ArrayList<>();
-                String[] lines = routeStr.split("\n");
-                for (String line : lines) {
-                    if (line.trim().isEmpty()) continue;
-                    line = line.replace("(", "").replace(")", "").trim();
-                    String[] parts = line.split(",");
-                    if (parts.length == 2) {
-                        try {
-                            double lat = Double.parseDouble(parts[0].trim());
-                            double lon = Double.parseDouble(parts[1].trim());
-                            path.add(new Point(lat, lon));
-                        } catch (NumberFormatException e) {
-                            // skip invalid line
-                        }
-                    }
-                }
-                target.setPath(path);
-            }
-
-            // سرعت (Speed)
-            Object speedObj = jtblTargets.getValueAt(row, 2);
-            if (speedObj != null) {
+    // مسیر (Route)
+    Object routeObj = jtblTargets.getValueAt(row, 1);
+    if (routeObj != null) {
+        String routeStr = routeObj.toString().trim();
+        List<ir.hakim.classes.Point> path = new ArrayList<>();
+        String[] lines = routeStr.split("\n");
+        for (String line : lines) {
+            line = line.replace("(", "").replace(")", "").trim();
+            String[] parts = line.split(",");
+            if (parts.length == 2) {
                 try {
-                    target.setSpeed(Double.parseDouble(speedObj.toString().trim()));
+                    double lat = Double.parseDouble(parts[0].trim());
+                    double lon = Double.parseDouble(parts[1].trim());
+                    path.add(new ir.hakim.classes.Point(lat, lon));
                 } catch (NumberFormatException e) {
-                    target.setSpeed(0); // پیش‌فرض
+                    e.printStackTrace(); // skip invalid line
                 }
             }
+        }
+        target.setPath(path);
+    }
 
-            // سنسورها (RelatedSensors)
-            Object sensorsObj = jtblTargets.getValueAt(row, 3);
-            if (sensorsObj != null) {
-                String[] sensorLines = sensorsObj.toString().split("\n");
-                List<String> sensorIds = new ArrayList<>();
-                for (String s : sensorLines) {
-                    if (s != null && !s.trim().isEmpty()) {
-                        sensorIds.add(s.trim());
-                    }
-                }
-                target.setRelatedSensors(sensorIds);
-            } else {
-                target.setRelatedSensors(new ArrayList<>());
-            }
-
-            // UID
-            String uid = targetsTableModel.getId(row);
-            if (uid != null) {
-                target.setUid(uid);
-            }
-
-            return target;
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            if (txtLogs != null) {
-                txtLogs.insert(String.format("Error getting target from row %d: %s%n", row, ex.getMessage()), 0);
-            }
-            return new Target(); // return empty target instead of null
+    // سرعت (Speed)
+    Object speedObj = jtblTargets.getValueAt(row, 2);
+    if (speedObj != null) {
+        try {
+            target.setSpeed(Double.parseDouble(speedObj.toString().trim()));
+        } catch (NumberFormatException e) {
+            target.setSpeed(0); // پیش‌فرض
         }
     }
+
+    // سنسورها (RelatedSensors)
+    Object sensorsObj = jtblTargets.getValueAt(row, 3);
+    if (sensorsObj != null) {
+        String[] sensorLines = sensorsObj.toString().split("\n");
+        List<String> sensorIds = new ArrayList<>();
+        for (String s : sensorLines) {
+            if (!s.trim().isEmpty()) {
+                sensorIds.add(s.trim());
+            }
+        }
+        target.setRelatedSensors(sensorIds);
+        target.setRelatedSensorsString(String.join("\n", sensorIds));
+    } else {
+        target.setRelatedSensors(new ArrayList<>());
+        target.setRelatedSensorsString("");
+    }
+
+    // UID
+    target.setUid(targetsTableModel.getId(row));
+
+    return target;
+}
 }

@@ -33,7 +33,7 @@ public class Target {
     // برای حرکت در مسیر چند نقطه ای:
     private int currentSegmentIndex = 0;  // شاخص قطعه مسیر که هدف در آن قرار دارد
     private double latIncrement, lonIncrement, currentLat, currentLon;
-    private volatile boolean stopRequested = false;
+    private boolean stopRequested = false;
 
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private ScheduledFuture<?> moverHandle;
@@ -41,26 +41,23 @@ public class Target {
     public Target() {
         this.uid = UUID.randomUUID();
         this.path = new ArrayList<>();
-        this.relatedSensors = new ArrayList<>();
-        this.speed = 0.0;
-        this.id = 0;
     }
 
     // سازنده اصلی با path و سرعت
     public Target(Integer id, List<ir.hakim.classes.Point> path, Double speed, ArrayList<String> selectedSensors) {
         this.uid = UUID.randomUUID();
-        this.id = id != null ? id : 0;
-        this.path = path != null ? new ArrayList<>(path) : new ArrayList<>();
-        this.speed = speed != null ? speed : 0.0;
-        this.relatedSensors = selectedSensors != null ? new ArrayList<>(selectedSensors) : new ArrayList<>();
+        this.id = id;
+        this.path = path != null ? path : new ArrayList<>();
+        this.speed = speed;
+        this.relatedSensors = selectedSensors;
     }
 
     public Target(Integer id, List<Point> pathPoint, double speed, List<String> selectedSensors) {
         this.uid = UUID.randomUUID();
-        this.id = id != null ? id : 0;
-        this.path = pathPoint != null ? new ArrayList<>(pathPoint) : new ArrayList<>();
+        this.id = id;
+        this.path = pathPoint != null ? pathPoint : new ArrayList<>();
         this.speed = speed;
-        this.relatedSensors = selectedSensors != null ? new ArrayList<>(selectedSensors) : new ArrayList<>();
+        this.relatedSensors = selectedSensors;
     }
 
     // متد اصلی حرکت هدف در مسیر چند نقطه ای
@@ -307,24 +304,15 @@ public class Target {
     }
 
     public String getUid() {
-        return uid != null ? uid.toString() : UUID.randomUUID().toString();
+        return uid.toString();
     }
 
     public void setUid(String uid) {
-        try {
-            this.uid = uid != null ? UUID.fromString(uid) : UUID.randomUUID();
-        } catch (IllegalArgumentException e) {
-            this.uid = UUID.randomUUID();
-            if (logger != null) {
-                SwingUtilities.invokeLater(() -> {
-                    logger.insert(String.format("Invalid UID format, generated new UID for target %d%n", id), 0);
-                });
-            }
-        }
+        this.uid = UUID.fromString(uid);
     }
 
     public int getId() {
-        return id != null ? id : 0;
+        return id;
     }
 
     public void setId(int id) {
@@ -332,7 +320,7 @@ public class Target {
     }
 
     public double getSpeed() {
-        return speed != null ? speed : 0.0;
+        return speed;
     }
 
     public void setSpeed(double speed) {
@@ -340,7 +328,7 @@ public class Target {
     }
 
     public List<String> getRelatedSensors() {
-        return this.relatedSensors != null ? this.relatedSensors : new ArrayList<>();
+        return this.relatedSensors;
     }
 
     public String getRelatedSensorsString() {
@@ -350,7 +338,7 @@ public class Target {
     }
 
     public void setRelatedSensors(List<String> relatedSensors) {
-        this.relatedSensors = relatedSensors != null ? new ArrayList<>(relatedSensors) : new ArrayList<>();
+        this.relatedSensors = relatedSensors;
     }
 
     public void setRelatedSensorsString(String relatedSensorNames) {
@@ -387,45 +375,18 @@ public class Target {
     }
 
     public String getName() {
-        return name != null ? name : "Target_" + id;
-    }
-
-    public void setName(String name) {
-        this.name = name;
+        return name;
     }
 
     public Collection<? extends ir.hakim.classes.Point> getPath() {
-        if (path == null) {
-            return new ArrayList<>();
-        }
-        try {
-            return (Collection<? extends ir.hakim.classes.Point>) path;
-        } catch (ClassCastException e) {
-            return new ArrayList<>();
-        }
+        return (Collection<? extends ir.hakim.classes.Point>) path;
     }
 
     public void setPath(List<Point> path) {
-        this.path = path != null ? new ArrayList<>(path) : new ArrayList<>();
+        this.path = path;
     }
 
     public String[] getSensorIds() {
-        if (relatedSensors == null || relatedSensors.isEmpty()) {
-            return new String[0];
-        }
-        return relatedSensors.toArray(new String[0]);
-    }
-
-    // Clean up resources when target is destroyed
-    @Override
-    protected void finalize() throws Throwable {
-        try {
-            stop();
-            if (scheduler != null && !scheduler.isShutdown()) {
-                scheduler.shutdown();
-            }
-        } finally {
-            super.finalize();
-        }
+        return new String[]{name};
     }
 }
